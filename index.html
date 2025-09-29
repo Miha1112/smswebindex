@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Shop</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body { background:#0e0f13; color:#e9ecf1; }
+    .card { background:#171923; border:1px solid #22263a; }
+    .badge { font-weight:500; }
+  </style>
+</head>
+<body class="p-3">
+<div class="container">
+  <h4 class="mb-3">Select service</h4>
+  <div id="grid" class="row g-3"></div>
+</div>
+<script>
+  const tg = window.Telegram.WebApp;
+  tg.expand();
+
+  async function waAuth(){
+    const initData = tg.initData || "";
+    const botToken = ""; // НЕ тримаємо токен тут. Краще прокидати його з бекенду як конфіг або не вимагати тут.
+    // для демо викличемо без токена (бекенд може мати токен зі свого конфіга)
+    const params = new URLSearchParams({initData});
+    const r = await fetch('/api/wa/auth?'+params.toString(), {method:'POST'});
+    return r.json();
+  }
+
+  async function loadServices(){
+    const r = await fetch('/api/wa/services');
+    return r.json();
+  }
+
+  function serviceCard(s){
+    const mode = s.pricing?.mode === 'RENTAL' ? 'rent / day' : 'per SMS';
+    const price = (s.pricing?.price ?? 0);
+    return `
+<div class="col-12">
+  <div class="card p-3 d-flex flex-row align-items-center justify-content-between">
+    <div class="d-flex align-items-center">
+      <div class="me-3 fs-4">${s.icon || '📱'}</div>
+      <div>
+        <div class="fw-bold">${s.name}</div>
+        <div class="text-secondary" style="font-size:.9rem">${s.code}</div>
+      </div>
+    </div>
+    <div class="text-end">
+      <div class="badge bg-info text-dark">$${price} ${mode}</div>
+      <button class="btn btn-primary btn-sm ms-2" onclick="selectService('${s.code}')">Select</button>
+    </div>
+  </div>
+</div>`;
+  }
+
+  function selectService(code){
+    tg.showPopup({
+      title: 'Service',
+      message: `Selected: ${code}\n(далі: країна, підтвердження, оплата)`,
+      buttons: [{type:'close'}]
+    });
+  }
+
+  (async function(){
+    try{
+      await waAuth();
+      const data = await loadServices();
+      const items = data.items || [];
+      document.getElementById('grid').innerHTML = items.map(serviceCard).join('');
+    }catch(e){
+      console.error(e);
+      document.getElementById('grid').innerHTML = `<div class="text-danger">Failed to load</div>`;
+    }
+  })();
+</script>
+</body>
+</html>
